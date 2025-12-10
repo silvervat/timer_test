@@ -1,0 +1,8 @@
+{
+  "name": "Rivest Platform",
+  "description": "Construction management time tracking client. Features GPS verification, photo documentation, and AI site analysis.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
