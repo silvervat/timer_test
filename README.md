@@ -8,6 +8,8 @@ This contains everything you need to run your app locally.
 
 View your app in AI Studio: https://ai.studio/apps/drive/1OLdtinpUcRRcr3hxI7SXb_AiMMnWhtvo
 
+**Live Demo:** https://silvervat.github.io/timer_test
+
 ## Run Locally
 
 **Prerequisites:**  Node.js
