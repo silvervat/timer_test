@@ -109,25 +109,41 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
 
   const startCamera = async () => {
     try {
+      // Stop any existing stream first
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+
       // Force environment (rear) camera if available
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
+        video: {
+          facingMode: { ideal: "environment" },
           width: { ideal: 1920 },
           height: { ideal: 1080 }
-        }, 
+        },
         audio: false
       });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Explicitly play the video
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn("Video autoplay blocked, user interaction needed:", playErr);
+        }
       }
     } catch (err: any) {
       console.error("Camera Error:", err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
          setError("Keelasite kaamera kasutamise. Tööaja fikseerimiseks on kohustuslik teha reaalajas pilt objektist.");
+      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+         setError("Kaamerat ei leitud. Veenduge, et teie seadmel on kaamera.");
+      } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+         setError("Kaamera on juba kasutusel teise rakenduse poolt.");
       } else {
-         setError("Kaamera käivitamine ebaõnnestus. Palun veenduge, et kaameral on load antud.");
+         setError(`Kaamera käivitamine ebaõnnestus: ${err.message || err.name}`);
       }
     }
   };
@@ -292,11 +308,15 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
         {step === Step.CAMERA && (
            <>
             {!photo && (
-              <video 
-                ref={videoRef} 
-                autoPlay 
-                playsInline 
-                muted 
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                onLoadedMetadata={(e) => {
+                  const video = e.target as HTMLVideoElement;
+                  video.play().catch(console.warn);
+                }}
                 className="w-full h-full object-cover"
               />
             )}
