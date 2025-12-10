@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, X, Check, AlertTriangle, RefreshCw, Navigation, Building2, Coffee, Play } from 'lucide-react';
+import { MapPin, X, Check, AlertTriangle, RefreshCw, Navigation, Building2, Coffee, Play, Settings, ExternalLink } from 'lucide-react';
 import { LocationData, ActionType } from '../types';
 
 interface ActionFlowProps {
@@ -13,6 +13,174 @@ enum Step {
   INIT_LOCATION = 0,
   CAMERA = 1,
   CONFIRM = 2,
+}
+
+type PermissionType = 'location' | 'camera';
+
+interface DeviceInfo {
+  browser: 'chrome' | 'safari' | 'firefox' | 'edge' | 'samsung' | 'other';
+  os: 'ios' | 'android' | 'macos' | 'windows' | 'other';
+  isMobile: boolean;
+}
+
+// Detect browser and OS
+function getDeviceInfo(): DeviceInfo {
+  const ua = navigator.userAgent.toLowerCase();
+
+  let browser: DeviceInfo['browser'] = 'other';
+  let os: DeviceInfo['os'] = 'other';
+  const isMobile = /mobile|android|iphone|ipad|ipod/.test(ua);
+
+  // Detect OS
+  if (/iphone|ipad|ipod/.test(ua)) {
+    os = 'ios';
+  } else if (/android/.test(ua)) {
+    os = 'android';
+  } else if (/macintosh|mac os x/.test(ua)) {
+    os = 'macos';
+  } else if (/windows/.test(ua)) {
+    os = 'windows';
+  }
+
+  // Detect Browser
+  if (/samsungbrowser/.test(ua)) {
+    browser = 'samsung';
+  } else if (/edg/.test(ua)) {
+    browser = 'edge';
+  } else if (/chrome|crios/.test(ua) && !/edge/.test(ua)) {
+    browser = 'chrome';
+  } else if (/safari/.test(ua) && !/chrome/.test(ua)) {
+    browser = 'safari';
+  } else if (/firefox|fxios/.test(ua)) {
+    browser = 'firefox';
+  }
+
+  return { browser, os, isMobile };
+}
+
+// Get permission instructions based on device/browser
+function getPermissionInstructions(permissionType: PermissionType, device: DeviceInfo): { title: string; steps: string[] } {
+  const isLocation = permissionType === 'location';
+  const permName = isLocation ? 'asukoha' : 'kaamera';
+
+  // iOS Safari
+  if (device.os === 'ios' && device.browser === 'safari') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine iOS Safari's`,
+      steps: [
+        'Ava Seaded (Settings)',
+        'Keri alla ja vali Safari',
+        `Vali "${isLocation ? 'Asukoht' : 'Kaamera'}" (${isLocation ? 'Location' : 'Camera'})`,
+        'Vali "Luba" (Allow)',
+        'Tule tagasi ja värskenda lehte'
+      ]
+    };
+  }
+
+  // iOS Chrome
+  if (device.os === 'ios' && device.browser === 'chrome') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine iOS Chrome'is`,
+      steps: [
+        'Ava Seaded (Settings)',
+        'Keri alla ja vali Chrome',
+        `Lülita sisse "${isLocation ? 'Asukoht' : 'Kaamera'}" (${isLocation ? 'Location' : 'Camera'})`,
+        'Tule tagasi ja värskenda lehte'
+      ]
+    };
+  }
+
+  // Android Chrome
+  if (device.os === 'android' && device.browser === 'chrome') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Android Chrome'is`,
+      steps: [
+        'Vajuta aadressiriba kõrval olevale lukuikoonile 🔒',
+        'Vali "Saidi seaded" (Site settings)',
+        `Leia "${isLocation ? 'Asukoht' : 'Kaamera'}" (${isLocation ? 'Location' : 'Camera'})`,
+        'Muuda "Blokeeri" → "Luba" (Allow)',
+        'Värskenda lehte'
+      ]
+    };
+  }
+
+  // Android Samsung Browser
+  if (device.os === 'android' && device.browser === 'samsung') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Samsung Browseris`,
+      steps: [
+        'Vajuta menüünuppu (3 joont)',
+        'Vali Seaded → Saidid ja allalaadimised',
+        `Vali "${isLocation ? 'Asukoht' : 'Kaamera'}"`,
+        'Leia see leht ja luba',
+        'Värskenda lehte'
+      ]
+    };
+  }
+
+  // Desktop Chrome
+  if (device.browser === 'chrome' && !device.isMobile) {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Chrome'is`,
+      steps: [
+        'Vajuta aadressiriba vasakul olevale ikoonile (lukk või info)',
+        `Leia "${isLocation ? 'Asukoht' : 'Kaamera'}" (${isLocation ? 'Location' : 'Camera'})`,
+        'Muuda "Blokeeri" → "Luba"',
+        'Värskenda lehte (F5 või Ctrl+R)'
+      ]
+    };
+  }
+
+  // Desktop Safari
+  if (device.browser === 'safari' && device.os === 'macos') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Safari's`,
+      steps: [
+        'Vali menüüst Safari → Eelistused (Preferences)',
+        'Ava "Veebilehed" (Websites) vahekaart',
+        `Vali vasakult "${isLocation ? 'Asukoht' : 'Kaamera'}" (${isLocation ? 'Location' : 'Camera'})`,
+        'Leia see leht ja vali "Luba" (Allow)',
+        'Värskenda lehte'
+      ]
+    };
+  }
+
+  // Desktop Firefox
+  if (device.browser === 'firefox') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Firefoxis`,
+      steps: [
+        'Vajuta aadressiriba vasakul olevale ikoonile',
+        `Leia ${permName} load`,
+        'Vajuta X nuppu blokeeringu eemaldamiseks',
+        'Värskenda lehte ja luba kui küsitakse'
+      ]
+    };
+  }
+
+  // Desktop Edge
+  if (device.browser === 'edge') {
+    return {
+      title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine Edge'is`,
+      steps: [
+        'Vajuta aadressiriba vasakul olevale lukuikoonile',
+        'Vali "Saidi load" (Site permissions)',
+        `Leia "${isLocation ? 'Asukoht' : 'Kaamera'}" ja luba`,
+        'Värskenda lehte'
+      ]
+    };
+  }
+
+  // Generic fallback
+  return {
+    title: `${isLocation ? 'Asukoha' : 'Kaamera'} lubamine`,
+    steps: [
+      'Ava brauseri seaded',
+      `Leia privaatsuse või lubade seaded`,
+      `Luba ${permName} kasutamine selle lehe jaoks`,
+      'Värskenda lehte'
+    ]
+  };
 }
 
 // Haversine formula to calculate distance in meters
@@ -36,17 +204,19 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
   const [location, setLocation] = useState<LocationData | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  
+  const [error, setError] = useState<{ message: string; permissionType?: PermissionType } | null>(null);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const watchIdRef = useRef<number | null>(null);
 
+  const deviceInfo = getDeviceInfo();
+
   // 1. Watch Location for accuracy and distance
   useEffect(() => {
     if (!navigator.geolocation) {
-      setError("Teie seade ei toeta geolokatsiooni. Tööaja arvestamine pole võimalik.");
+      setError({ message: "Teie seade ei toeta geolokatsiooni. Tööaja arvestamine pole võimalik." });
       return;
     }
 
@@ -84,10 +254,13 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
       (err) => {
         console.error("GPS Error:", err);
         if (err.code === 1) { // PERMISSION_DENIED
-          setError("Keelasite asukoha tuvastamise. Tööaja alustamiseks/lõpetamiseks on GPS andmed kohustuslikud.");
+          setError({
+            message: "Asukoha tuvastamine on blokeeritud. Tööaja alustamiseks/lõpetamiseks on GPS andmed kohustuslikud.",
+            permissionType: 'location'
+          });
         } else if (err.code === 2) { // POSITION_UNAVAILABLE
           // Don't error immediately on unavailable, keep trying via watch
-        } 
+        }
       },
       geoOptions
     );
@@ -137,13 +310,16 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
     } catch (err: any) {
       console.error("Camera Error:", err);
       if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-         setError("Keelasite kaamera kasutamise. Tööaja fikseerimiseks on kohustuslik teha reaalajas pilt objektist.");
+        setError({
+          message: "Kaamera kasutamine on blokeeritud. Tööaja fikseerimiseks on kohustuslik teha reaalajas pilt objektist.",
+          permissionType: 'camera'
+        });
       } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-         setError("Kaamerat ei leitud. Veenduge, et teie seadmel on kaamera.");
+        setError({ message: "Kaamerat ei leitud. Veenduge, et teie seadmel on kaamera." });
       } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-         setError("Kaamera on juba kasutusel teise rakenduse poolt.");
+        setError({ message: "Kaamera on juba kasutusel teise rakenduse poolt." });
       } else {
-         setError(`Kaamera käivitamine ebaõnnestus: ${err.message || err.name}`);
+        setError({ message: `Kaamera käivitamine ebaõnnestus: ${err.message || err.name}` });
       }
     }
   };
@@ -199,19 +375,63 @@ export const ActionFlow: React.FC<ActionFlowProps> = ({ type, targetLocation, on
   // RENDER HELPERS
 
   if (error) {
+    const instructions = error.permissionType
+      ? getPermissionInstructions(error.permissionType, deviceInfo)
+      : null;
+
     return (
-      <div className="fixed inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center p-6 text-white text-center backdrop-blur-sm">
-        <div className="bg-red-500/10 p-4 rounded-full mb-6 border border-red-500/20">
-           <AlertTriangle className="w-16 h-16 text-red-500" />
+      <div className="fixed inset-0 z-50 bg-slate-900/95 flex flex-col items-center justify-center p-6 text-white backdrop-blur-sm overflow-auto">
+        <div className="max-w-sm w-full">
+          <div className="flex justify-center mb-6">
+            <div className="bg-red-500/10 p-4 rounded-full border border-red-500/20">
+              <AlertTriangle className="w-12 h-12 text-red-500" />
+            </div>
+          </div>
+
+          <h2 className="text-2xl font-bold mb-2 text-center">Toiming peatatud</h2>
+          <p className="mb-6 text-slate-300 text-center leading-relaxed">{error.message}</p>
+
+          {instructions && (
+            <div className="bg-slate-800/80 rounded-2xl p-5 mb-6 border border-slate-700">
+              <div className="flex items-center gap-2 mb-4">
+                <Settings className="w-5 h-5 text-blue-400" />
+                <h3 className="font-semibold text-white">{instructions.title}</h3>
+              </div>
+              <ol className="space-y-3">
+                {instructions.steps.map((step, index) => (
+                  <li key={index} className="flex gap-3 text-sm">
+                    <span className="flex-shrink-0 w-6 h-6 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center text-xs font-bold">
+                      {index + 1}
+                    </span>
+                    <span className="text-slate-300 pt-0.5">{step}</span>
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-4 pt-4 border-t border-slate-700">
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <ExternalLink className="w-3 h-3" />
+                  Pärast lubade muutmist värskenda lehte
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              className="flex-1 bg-slate-700 hover:bg-slate-600 active:bg-slate-800 py-4 rounded-xl font-bold transition-all"
+            >
+              Sulge
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="flex-1 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 py-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Värskenda
+            </button>
+          </div>
         </div>
-        <h2 className="text-2xl font-bold mb-2">Toiming peatatud</h2>
-        <p className="mb-8 text-slate-300 max-w-xs mx-auto leading-relaxed">{error}</p>
-        <button 
-          onClick={onCancel}
-          className="w-full max-w-xs bg-slate-700 hover:bg-slate-600 active:bg-slate-800 py-4 rounded-xl font-bold transition-all"
-        >
-          Sulge ja tühista
-        </button>
       </div>
     );
   }
